@@ -9,7 +9,7 @@ import { toast } from "react-hot-toast";
 
 function UsersList({searchTerm}) {
     const [ users, setUsers] = useState([]);
-    const { allChats } = useSelector(state => state.chatReducer);
+    const { allChats, selectedChat } = useSelector(state => state.chatReducer);
     const { user: currentUser } = useSelector(state => state.userReducer);
     const dispatch = useDispatch();
 
@@ -38,6 +38,13 @@ function UsersList({searchTerm}) {
         if (existingChat) {
             dispatch(setSelectedChat(existingChat));
         }
+    }
+
+    const isSelectedChat = (user) => {
+        if (selectedChat) {
+            return selectedChat.members.map(member => member._id).includes(user._id);
+        }
+        return false;
     }
 
     useEffect(() => {
@@ -72,11 +79,11 @@ function UsersList({searchTerm}) {
         filteredUsers && filteredUsers.length > 0 ? (
             filteredUsers.map(user => (
                 <div className="user-search-filter" onClick={() => openChat(user._id)} key={user._id}>
-                    <div className="filtered-user">
+                    <div className={isSelectedChat(user) ? "selected-user" : "filtered-user"}>
                         <div className="filter-user-display">
                             {user.profilePic && <img src={`http://localhost:3000/${user.profilePic}`} alt="Profile Pic" className="user-profile-image" />}
                             {!user.profilePic && 
-                                <div className="user-default-profile-pic">
+                                <div className={isSelectedChat(user) ? "user-selected-avatar" : "user-default-avatar"}>
                                     {user.username.charAt(0).toUpperCase()}
                                 </div>
                             }
