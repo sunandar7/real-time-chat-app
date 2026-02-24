@@ -3,6 +3,7 @@ import { createMessage, getMessagesByChatId } from "../../../apiCalls/message";
 import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import { showLoader, hideLoader } from "../../../redux/loaderSlice";
+import moment from "moment";
 
 function ChatArea() {
     const { selectedChat } = useSelector((state) => state.chatReducer);
@@ -46,6 +47,19 @@ function ChatArea() {
         }
     }
 
+    const formatTime = (timestamp) => {
+        const now = moment();
+        const diff = now.diff(moment(timestamp), 'days');
+
+        if(diff < 1) {
+            return `Today ${moment(timestamp).format('hh:mm A')}`;
+        } else if(diff === 1) {
+            return `Yesterday ${moment(timestamp).format('hh:mm A')}`;
+        } else {
+            return moment(timestamp).format('MMM D, hh:mm A');
+        }
+    }
+
     useEffect(() => {
         if(selectedChat){
             getMessages();
@@ -63,8 +77,14 @@ function ChatArea() {
                     <div className="main-chat-area">
                         {
                             messages && messages.map(message => {
-                                return <div key={message._id} className="message-container" style={{justifyContent: "flex-end"}}>
-                                    <div className="send-message">{message.text}</div>
+                                const isCurrentUserSender = message.sender === currentUser._id;
+                                return <div key={message._id} className="message-container" style={isCurrentUserSender ? {justifyContent: "end"} : {justifyContent: "start"}}>
+                                    <div>
+                                        <div className={isCurrentUserSender ? "send-message" : "received-message"}>{message.text}</div>
+                                        <div className="message-timestamp" style={isCurrentUserSender ? {float: "right"} : {float: "left"}}>
+                                            {formatTime(message.createdAt)}
+                                        </div>
+                                    </div>
                                 </div>
                             })
                         }

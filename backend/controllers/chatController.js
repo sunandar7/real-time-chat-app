@@ -12,7 +12,9 @@ const createChat = async (req, res) => {
 const getAllChats = async (req, res) => {
     try {
         const chats = await Chat.find({ members : { $in: req.userId } })
-                                .populate("members", "-password").sort({ updatedAt: -1 });
+                                .populate("members", "-password")
+                                .populate("lastMessage")
+                                .sort({ updatedAt: -1 });
 
         if (!chats || chats.length === 0) {
             return res.status(404).json({ success: false, message: "No chats found" });

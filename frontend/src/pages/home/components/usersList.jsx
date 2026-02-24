@@ -6,6 +6,7 @@ import { showLoader, hideLoader } from "../../../redux/loaderSlice";
 import { createChat } from "../../../apiCalls/chat";
 import { setAllChats, setSelectedChat } from "../../../redux/chatSlice";
 import { toast } from "react-hot-toast";
+import moment from "moment";
 
 function UsersList({searchTerm}) {
     const [ users, setUsers] = useState([]);
@@ -45,6 +46,25 @@ function UsersList({searchTerm}) {
             return selectedChat.members.map(member => member._id).includes(user._id);
         }
         return false;
+    }
+
+    const getLastMessage = (userId) => {
+        const chat = allChats.find(chat => chat.members.map(member => member._id).includes(userId));
+        if(!chat || !chat.lastMessage) {
+            return "";
+        } else {
+            const msgPrefix = chat?.lastMessage?.sender === currentUser._id ? "You: " : "";
+            return msgPrefix + chat?.lastMessage?.text?.substring(0,25);
+        }
+    }
+
+    const getLastMessageTimestamp = (userId) => {
+        const chat = allChats.find(chat => chat.members.map(member => member._id).includes(userId));
+        if(!chat || !chat?.lastMessage) {
+            return "";
+        } else {
+            return moment(chat?.lastMessage?.createdAt).format('hh:mm A')
+        }
     }
 
     useEffect(() => {
@@ -89,7 +109,10 @@ function UsersList({searchTerm}) {
                             }
                             <div className="filter-user-details">
                                 <div className="user-display-name">{user.username}</div>
-                                <div className="user-display-email">{user.email}</div>
+                                <div className="user-display-email">{getLastMessage(user._id) || user.email}</div>
+                            </div>
+                            <div className="last-message-timestamp">
+                                {getLastMessageTimestamp(user._id)}
                             </div>
                             {!chatAlreadyExists(user._id) && (
                                 <div className="user-start-chat">
