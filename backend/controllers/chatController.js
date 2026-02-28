@@ -1,4 +1,5 @@
 const Chat = require('../models/chat');
+const Message = require('../models/message');
 
 const createChat = async (req, res) => {
     try {
@@ -30,4 +31,32 @@ const getAllChats = async (req, res) => {
     }
 }
 
-module.exports = { createChat, getAllChats };
+const clearUnreadMessage = async (req, res) => {
+    try {
+        const { chatId } = req.body;
+
+        // Update the unread message count in chat collection
+        const chat = await Chat.findById(chatId);
+        if(!chat) {
+            return res.status(404).json({ success: false, message: "Chat not found with the given chat ID" });
+        }
+
+        const updatedChat = await Chat.findByIdAndUpdate(
+            chatId,
+            { $set: { unreadMessagesCount: 0 } },
+            { new: true }
+        ).populate("members", "-password")
+        .populate("lastMessage");
+
+        // Update the 'read' status to true in message collection
+        await Message.updateMany(
+            { chatId: chatId, read: false},
+            { $set: { read: true } }
+        );
+        return res.status(200).json({ success: true, message: "Unread message count cleared successfully", data: updatedChat });
+    } catch (error) {
+        return res.status(400).json({ success: false, error: error.message });
+    }
+}
+
+module.exports = { createChat, getAllChats, clearUnreadMessage };

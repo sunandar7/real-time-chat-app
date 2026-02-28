@@ -8,7 +8,7 @@ import { setAllChats, setSelectedChat } from "../../../redux/chatSlice";
 import { toast } from "react-hot-toast";
 import moment from "moment";
 
-function UsersList({searchTerm}) {
+function UsersList({searchTerm, socket}) {
     const [ users, setUsers] = useState([]);
     const { allChats, selectedChat } = useSelector(state => state.chatReducer);
     const { user: currentUser } = useSelector(state => state.userReducer);
@@ -67,6 +67,26 @@ function UsersList({searchTerm}) {
         }
     }
 
+    const getUnreadMessageCount = (userId) => {
+        const chat = allChats.find(chat => chat.members.map(member => member._id ).includes(userId));
+
+        if(chat && chat.unreadMessagesCount && chat.lastMessage.sender !== currentUser._id) {
+            return <div className="unread-message-counter"> {chat.unreadMessagesCount} </div>;
+        } else {
+            return "";
+        }
+    }
+
+    const getData = () => {
+        if(searchTerm === "") {
+            return allChats;
+        } else {
+            return users.filter(user => {
+                return user.username.toLowerCase().includes(searchTerm.toLowerCase())
+            })
+        }
+    }
+
     useEffect(() => {
         const fetchUsers = async () => {
             dispatch(showLoader());   
@@ -82,6 +102,24 @@ function UsersList({searchTerm}) {
         fetchUsers();
     }, [dispatch]);
 
+    useEffect(() => {
+            socket.on('receive-message', (data) => {
+                if(selectedChat?._id !== data.chatId) {
+                    const updatedChats = allChats.map(chat => {
+                        if(chat._id === data.chatId) {
+                            return {
+                                ...chat,
+                                unreadMessagesCount: (chat?.unreadMessagesCount || 0) + 1,
+                                lastMessage: data
+                            }
+                        }
+                        return chat;
+                    });
+                    dispatch(setAllChats(updatedChats));
+                }
+            })
+    }, [socket, selectedChat, allChats, dispatch])
+
     // Filter users based on search term
     const filteredUsers = users.filter(user =>
         (user.username.toLowerCase().includes(searchTerm.toLowerCase()) && searchTerm) ||
@@ -96,9 +134,12 @@ function UsersList({searchTerm}) {
     };
 
     return (
-        filteredUsers && filteredUsers.length > 0 ? (
-            filteredUsers.map(user => (
-                <div className="user-search-filter" onClick={() => openChat(user._id)} key={user._id}>
+        getData().map(obj => {
+            let user = obj;
+            if(obj.members) {
+                user = obj.members.find(member => member._id !== currentUser._id);
+            }
+            return <div className="user-search-filter" onClick={() => openChat(user._id)} key={user._id}>
                     <div className={isSelectedChat(user) ? "selected-user" : "filtered-user"}>
                         <div className="filter-user-display">
                             {user.profilePic && <img src={`http://localhost:3000/${user.profilePic}`} alt="Profile Pic" className="user-profile-image" />}
@@ -111,8 +152,9 @@ function UsersList({searchTerm}) {
                                 <div className="user-display-name">{user.username}</div>
                                 <div className="user-display-email">{getLastMessage(user._id) || user.email}</div>
                             </div>
-                            <div className="last-message-timestamp">
-                                {getLastMessageTimestamp(user._id)}
+                            <div>
+                                {getUnreadMessageCount(user._id)}
+                                <div className="last-message-timestamp">{getLastMessageTimestamp(user._id)}</div>
                             </div>
                             {!chatAlreadyExists(user._id) && (
                                 <div className="user-start-chat">
@@ -122,11 +164,8 @@ function UsersList({searchTerm}) {
                         </div>
                     </div> 
                 </div>
-            )
-        )) : (
-            <p className="no-users-found">No users found.</p>
-        )               
-    )
+            }   
+        ))            
 }
 
 export default UsersList;

@@ -2,10 +2,10 @@ require('dotenv').config();
 
 const dbConfig = require('./config/dbConfig');
 
-const app = require('./app');
+const server = require('./app');
 
-const port = process.env.PORT || 3001;
+const port = process.env.PORT || 3000;
 
-app.listen(port, () => {
+server.listen(port, () => {
     console.log(`Server is running on port ${port}`);
 });
