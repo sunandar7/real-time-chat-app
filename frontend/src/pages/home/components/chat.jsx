@@ -4,6 +4,7 @@ import { clearUnreadMessage } from "../../../apiCalls/chat";
 import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import { showLoader, hideLoader } from "../../../redux/loaderSlice";
+import { setAllChats } from "../../../redux/chatSlice";
 import moment from "moment";
 
 function ChatArea( {socket} ) {
@@ -12,6 +13,7 @@ function ChatArea( {socket} ) {
     const dispatch = useDispatch();
     const [ message, setMessage ] = useState('');
     const [ messages, setMessages ] = useState([]);
+    const [isTyping, setIsTyping] = useState(false);
     const selectedUser = selectedChat?.members.find(member => member._id !== currentUser._id);
 
     const sendMessage =  async () => {
@@ -52,8 +54,11 @@ function ChatArea( {socket} ) {
     }
 
     const clearUnreadMessageCount = async () => {
-        dispatch(showLoader());
         try {
+            socket.emit('clear-unread-messages', {
+                chatId: selectedChat._id,
+                members: selectedChat.members.map(member => member._id)
+            })
             const response = await clearUnreadMessage(selectedChat._id);
             allChats.map(chat => {
                 if(chat._id === selectedChat._id) {
@@ -66,8 +71,6 @@ function ChatArea( {socket} ) {
             console.error("Error clearing unread message count:", error);
             const message = error.response?.data?.message || "Something went wrong";
             toast.error(message);
-        } finally {
-            dispatch(hideLoader());
         }
     }
 
@@ -90,9 +93,45 @@ function ChatArea( {socket} ) {
             if(selectedChat?.lastMessage?.sender !== currentUser._id) {
                 clearUnreadMessageCount();
             }
-            socket.on('receive-message', data => {
-                if(data.chatId === selectedChat._id) {
-                    setMessages(prevMessages => [...prevMessages, data]);
+            socket.on('receive-message', message => {
+                if(selectedChat._id === message.chatId) {
+                    setMessages(prevMessages => [...prevMessages, message]);
+                }
+
+                if(selectedChat._id === message.chatId && message.sender !== currentUser._id) {
+                    clearUnreadMessageCount();
+                }
+            });
+
+            socket.on('message-count-cleared', data => {
+                if(selectedChat._id === data.chatId) {
+                    // Updating unread message count in the chat object
+                    const updatedChats = allChats.map(chat => {
+                        if(chat._id === data.chatId) {
+                            return {
+                                ...chat,
+                                unreadMessagesCount: 0
+                            }
+                        }
+                        return chat;
+                    })
+                    dispatch(setAllChats(updatedChats));
+                    // Updating read status of messages in the current chat area
+                    setMessages(prevMessages => prevMessages.map(msg => {
+                        return {
+                            ...msg,
+                            read: true
+                        }
+                    }));
+                }
+            });
+
+            socket.on('started-typing', data => {
+                if(selectedChat._id === data.chatId && data.sender !== currentUser._id) {
+                    setIsTyping(true);
+                    setTimeout(() => {
+                        setIsTyping(false);
+                    }, 2000);
                 }
             });
         }
@@ -101,7 +140,7 @@ function ChatArea( {socket} ) {
     useEffect(() => {
         const msgContainer = document.getElementById('main-chat-area');
         msgContainer.scrollTop = msgContainer.scrollHeight;
-    }, [messages])
+    }, [messages, isTyping])
 
     return (
         <>
@@ -126,12 +165,20 @@ function ChatArea( {socket} ) {
                                 </div>
                             })
                         }
+                        <div className="typing-indicator">{isTyping && <i>typing...</i>}</div>
                     </div>
                     <div className="send-message-div">
                         <input type="text" className="send-message-input" 
                             placeholder="Type a message"
                             value={message}
-                            onChange={(e) => setMessage(e.target.value)}
+                            onChange={(e) =>{
+                                setMessage(e.target.value)
+                                socket.emit('user-typing', {
+                                    chatId: selectedChat._id,
+                                    members: selectedChat.members.map(member => member._id),
+                                    sender: currentUser._id
+                                })
+                            }} 
                         />
                         <button className="fa fa-paper-plane send-message-btn" 
                             aria-hidden="true" 

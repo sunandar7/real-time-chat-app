@@ -8,9 +8,9 @@ import { setAllChats, setSelectedChat } from "../../../redux/chatSlice";
 import { toast } from "react-hot-toast";
 import moment from "moment";
 
-function UsersList({searchTerm, socket}) {
+function UsersList({searchTerm, socket, onlineUser}) {
     const [ users, setUsers] = useState([]);
-    const { allChats, selectedChat } = useSelector(state => state.chatReducer);
+    let { allChats, selectedChat } = useSelector(state => state.chatReducer);
     const { user: currentUser } = useSelector(state => state.userReducer);
     const dispatch = useDispatch();
 
@@ -106,7 +106,7 @@ function UsersList({searchTerm, socket}) {
             socket.on('receive-message', (data) => {
                 if(selectedChat?._id !== data.chatId) {
                     const updatedChats = allChats.map(chat => {
-                        if(chat._id === data.chatId) {
+                        if(chat?._id === data.chatId) {
                             return {
                                 ...chat,
                                 unreadMessagesCount: (chat?.unreadMessagesCount || 0) + 1,
@@ -115,10 +115,20 @@ function UsersList({searchTerm, socket}) {
                         }
                         return chat;
                     });
-                    dispatch(setAllChats(updatedChats));
+                    allChats = updatedChats;
                 }
+                // 1. Find the latest chat
+                const latestChat = allChats.find(chat => chat?._id === data.chatId);
+
+                // 2. Get all other chats
+                const otherChats = allChats.filter(chat => chat?._id !== data.chatId);
+
+                // 3. Create a new Array latest chat on top and then other chats
+                allChats = [latestChat, ...otherChats]; 
+
+                dispatch(setAllChats(allChats));
             })
-    }, [socket, selectedChat, allChats, dispatch])
+    }, [socket, allChats, dispatch])
 
     // Filter users based on search term
     const filteredUsers = users.filter(user =>
@@ -142,9 +152,16 @@ function UsersList({searchTerm, socket}) {
             return <div className="user-search-filter" onClick={() => openChat(user._id)} key={user._id}>
                     <div className={isSelectedChat(user) ? "selected-user" : "filtered-user"}>
                         <div className="filter-user-display">
-                            {user.profilePic && <img src={`http://localhost:3000/${user.profilePic}`} alt="Profile Pic" className="user-profile-image" />}
+                            {user.profilePic && 
+                                <img src={`http://localhost:3000/${user.profilePic}`} 
+                                    alt="Profile Pic" className="user-profile-image" 
+                                    style={onlineUser.includes(user._id) ? {border: '3px solid green'} : {}} 
+                                />
+                            }
                             {!user.profilePic && 
-                                <div className={isSelectedChat(user) ? "user-selected-avatar" : "user-default-avatar"}>
+                                <div className={isSelectedChat(user) ? "user-selected-avatar" : "user-default-avatar"}
+                                    style={onlineUser.includes(user._id) ? {border: '3px solid green'} : {}} 
+                                >
                                     {user.username.charAt(0).toUpperCase()}
                                 </div>
                             }

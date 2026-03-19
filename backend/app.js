@@ -25,6 +25,8 @@ app.use('/api/user', userRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/message', messageRoutes);
 
+const onlineUser = [];
+
 // Test socket connection from client
 io.on('connection', socket => {
     // Send to all connected clients
@@ -48,6 +50,23 @@ io.on('connection', socket => {
     // socket.on('send-message', data => {
     //     socket.to(data.recipient).emit('receive-message', data.message);
     // })
+
+    socket.on('clear-unread-messages', data => {
+        io.to(data.members[0]).to(data.members[1])
+        .emit('message-count-cleared', data);
+    })
+
+    socket.on('user-typing', data => {
+        io.to(data.members[0]).to(data.members[1])
+        .emit('started-typing', data);
+    })
+
+    socket.on('user-login', userId => {
+        if(!onlineUser.includes(userId)) {
+            onlineUser.push(userId);
+        }
+        socket.emit('online-users', onlineUser);
+    }) 
 })
 
 module.exports = server;

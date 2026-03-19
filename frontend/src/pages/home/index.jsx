@@ -7,12 +7,14 @@ import { showLoader, hideLoader } from "../../redux/loaderSlice";
 import { setAllChats } from "../../redux/chatSlice";
 import ChatArea from "./components/chat";
 import { io } from "socket.io-client";
+import { useState } from "react";
 
 const socket = io('http://localhost:3000');
 
 function Home() {
     const { user } = useSelector(state => state.userReducer);
     const { selectedChat } = useSelector(state => state.chatReducer);
+    const [onlineUser, setOnlineUser] = useState([]);
     const dispatch = useDispatch();
     
         useEffect(() => {
@@ -25,6 +27,10 @@ function Home() {
             // Send to specific socket ID
             if (user) {
                 socket.emit('join-room', user._id);
+                socket.emit('user-login', user._id);
+                socket.on('online-users', onlineusers => {
+                    setOnlineUser(onlineusers);
+                });
 
                 // socket.emit('send-message', { message: 'Hello', recipient: '69933f5f55149a1d9643d30e'});
                 // socket.on('receive-message', data => {
@@ -51,7 +57,7 @@ function Home() {
             {/* HEADER LAYOUT */}
             <Header />
             <div className="main-content">
-                <Sidebar socket={socket} />
+                <Sidebar socket={socket} onlineUser={onlineUser} />
                 {selectedChat && <ChatArea socket={socket} />}
             </div>
         </div>

@@ -317,7 +317,7 @@ i{
   line-height: 50px;
 }
 .user-default-avatar{
-  background-color: #3c864b;
+  background-color: #6fac7b;
   color: white;
 }
 .user-selected-avatar{
@@ -454,10 +454,10 @@ i{
 
 /* MEDIA QUERY FOR USER LIST */
 @media only screen and (max-width: 1000px) {
-    .filter-user-details {
+    .filter-user-details, .last-message-timestamp {
       display: none;
     }
-    .user-search-area {
+    .user-search-area, .unread-message-counter {
         display: none;
     }
     .app-sidebar{
@@ -479,4 +479,9 @@ i{
   background-color: #3c864b;
   font-weight: bold;
   color: white;
+}
+
+.typing-indicator{
+  font-size: 13px;
+  color: gray;
 }
